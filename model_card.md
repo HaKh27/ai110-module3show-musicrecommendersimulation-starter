@@ -32,6 +32,19 @@ Prompts:
 
 Avoid code here. Pretend you are explaining the idea to a friend who does not program.
 
+**Answer:**
+
+Think of the recommender as a judge that looks at every song in the catalog, one at a time, and asks four questions about how well it matches what the listener likes:
+
+1. **Is it the same genre the listener favors?** If so, that's the biggest point boost — genre tends to say the most about how a song actually sounds.
+2. **Does the mood match?** An exact mood match earns a solid bonus. If the mood isn't an exact match but is still in the same "family" of feeling (for example, "chill" and "relaxed" are both calm moods), the song still gets partial credit instead of being treated like a complete mismatch.
+3. **Is the energy level close to what the listener wants?** This isn't about picking the highest-energy or lowest-energy song — it's about picking whichever song's energy sits closest to the listener's preferred level, whether that's calm or intense.
+4. **Does the acoustic feel match the listener's taste?** If the listener prefers acoustic songs, more acoustic-sounding tracks score higher; if they prefer a more electronic sound, less-acoustic tracks score higher.
+
+Every song picks up points from these four checks and ends up with one final number — its score. Once every song in the catalog has been judged this way, the system lines them all up from the highest score to the lowest and hands back the top few as the recommendations, along with a plain-English explanation of exactly which checks earned it those points.
+
+**What changed from the starter logic:** the starter file was just a skeleton with placeholders — none of the scoring, loading, or ranking logic existed yet. We built the whole judging process described above, and along the way noticed that an early version of the mood check was too strict: it only rewarded an *exact* mood match and gave zero credit to moods that were basically synonyms (like "chill" and "relaxed"). We fixed that by grouping similar moods together so near-matches get partial credit instead of being penalized as if they were completely different.
+
 ---
 
 ## 4. Data  
