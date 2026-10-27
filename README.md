@@ -1,4 +1,4 @@
-# 🎵 Music Recommender Simulation
+# 🎵 withTaste — Music Recommender Simulation
 
 ## Project Summary
 
@@ -11,7 +11,7 @@ Your goal is to:
 - Evaluate what your system gets right and wrong
 - Reflect on how this mirrors real world AI recommenders
 
-Replace this paragraph with your own summary of what your version does.
+**withTaste** is a content-based music recommender that ranks a 17-song catalog against a user's stated taste profile (favorite genre, favorite mood, target energy, and acoustic preference). It scores every song with a weighted rule — genre match, mood match (with partial credit for similar moods), closeness to the target energy, and acoustic fit — then returns the top matches with a plain-English explanation of why each one scored the way it did. It runs from the command line via `python -m src.main`.
 
 ---
 
@@ -22,8 +22,8 @@ users. Songs have weights and values to decide which song to suggest to the user
 
 My version will use content-based filtering since there isn't multiple user data available to compare against. It will score songs by how closely their features match a target (the seed song or user profile) and then rank them in that order. 
 
-Explain your design in plain language.
-Every song has at least 3 attributes: Genre, Mood, and energy levl. 
+# Explain your design in plain language.
+Every song has at least 3 attributes: Genre, Mood, and energy level. 
 The user has a simple profile for their tailored taste. 
 
 
@@ -37,7 +37,7 @@ To recommend songs, the system goes through every song in the catalog and gives 
 Once the scoring is calculated, the system sorts the scores from highest to lowest and returns the top few as recommendations along with a short explanation. 
 
 
-Some prompts to answer:
+# Some prompts to answer:
 
 - What features does each `Song` use in your system
   - For example: genre, mood, energy, tempo
@@ -338,11 +338,12 @@ Summarize some limitations of your recommender.
 
 Examples:
 
-- It only works on a tiny catalog
-- It does not understand lyrics or language
-- It might over favor one genre or mood
+- It only works on a tiny, hand-written catalog (17 songs).
+- It does not learn from listening history — just a one-time stated profile.
+- It can over-favor genre and mood matches even when energy is way off.
+- Most genres have only 1 song, so there's little to compare within a genre.
 
-You will go deeper on this in your model card.
+See `model_card.md` for the full breakdown with test examples.
 
 ---
 
@@ -356,3 +357,5 @@ Write 1 to 2 paragraphs here about what you learned:
 
 - about how recommenders turn data into predictions
 - about where bias or unfairness could show up in systems like this
+
+Recommenders just add up points based on whatever weights the designer picked, then call the highest score a "prediction." That's not objective, it's value-based. Our "Extreme Target Energy" test proved it: a user asked for a calm metal song and still got the most energetic song in the catalog as #1, because genre + mood outweighed a totally wrong energy. Same lesson for real apps, someone's weights decide what counts as "recommended for you." Full write-up in `model_card.md` Section 9.

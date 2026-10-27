@@ -5,6 +5,8 @@
 Give your model a short, descriptive name.  
 Example: **VibeFinder 1.0**  
 
+Name: **withTaste 1.0**
+
 ---
 
 ## 2. Intended Use  
@@ -16,6 +18,11 @@ Prompts:
 - What kind of recommendations does it generate  
 - What assumptions does it make about the user  
 - Is this for real users or classroom exploration  
+
+**Answer:** 
+- withTaste gives a ranked list of songs from a small sample catalog, based on a user's genre, mood, energy, and acoustic preferences. 
+- It assumes the user already knows what they like and can describe it with those four preferences — it doesn't learn from listening history or feedback. 
+- This is a classroom project built to practice and demonstrate how content-based recommendation logic works, not a tool meant for real-world use.
 
 ---
 
@@ -58,6 +65,12 @@ Prompts:
 - Did you add or remove data  
 - Are there parts of musical taste missing in the dataset  
 
+**Answer:**
+- The catalog has **17 songs** total.
+- It covers **14 genres** (pop, lofi, rock, ambient, jazz, synthwave, indie pop, hip hop, classical, country, reggae, metal, folk, R&B) and **13 moods** (happy, chill, intense, relaxed, moody, focused, energetic, calm, nostalgic, romantic, angry, dreamy, sad).
+- We started with 10 songs and added 7 more, picking genres/moods that weren't already covered (like hip hop, classical, and metal).
+- Missing: real listening data (plays, skips, likes), lyrics or language, subgenres, and song popularity. Also, most genres only have 1 song each, so there's little room to compare songs within the same genre.
+
 ---
 
 ## 5. Strengths  
@@ -69,6 +82,12 @@ Prompts:
 - User types for which it gives reasonable results  
 - Any patterns you think your scoring captures correctly  
 - Cases where the recommendations matched your intuition  
+
+**Answer:**
+- Works best for users whose favorite genre has more than one song (like lofi), since the system has real options to rank against each other instead of just one automatic pick.
+- The energy-closeness scoring captures the right idea: it rewards songs closest to the user's target energy, not just "high" or "low" energy, so it correctly handles users who want calm music just as well as users who want intense music.
+- The mood-grouping fix works as intended: a song labeled "relaxed" still gets a fair amount of credit from a user who said "chill," instead of being treated as a total mismatch.
+- In clear-cut tests (like "Chill Lofi" vs. "Deep Intense Rock"), the top results matched intuition well — completely different song types for completely different tastes, with no overlap.
 
 ---
 
@@ -83,7 +102,11 @@ Prompts:
 - Cases where the system overfits to one preference  
 - Ways the scoring might unintentionally favor some users  
 
-**Answer:** The system over-prioritizes genre and mood exact-matches over energy fit, because 12 of the catalog's 14 genres contain only one song each. This means a user whose favorite genre is, say, "metal" has exactly one possible genre match, and that song's +3 genre bonus plus mood bonus is large enough to overpower an almost total energy mismatch. I confirmed this in the "Extreme Target Energy" edge-case test: a user wanting a calm (energy 0.0) metal/angry song was still recommended "Iron Reckoning" (energy 0.95) as the #1 result, even though its energy was about as wrong as possible. The weakness isn't a bug in the math — it's that a tiny, single-example-per-genre catalog combined with heavy genre/mood weighting leaves the system no real alternative to offer, so it confidently recommends a poor energy fit rather than honestly reflecting that no good match exists.
+**Answer:**
+- Features not considered: tempo, valence, danceability, and lyrics. They're stored in the data but don't affect the score.
+- Underrepresented: 12 of the 14 genres have only 1 song each, so most genres have no real alternative to rank against.
+- Overfitting example: in the "Extreme Target Energy" test, a user asked for a calm (energy 0.0) metal/angry song, but the system still recommended "Iron Reckoning" (energy 0.95) as #1 — the genre + mood bonus outweighed an almost total energy mismatch.
+- Unintentional favoritism: users whose favorite genre has multiple songs (like lofi) get a real ranked comparison. Users whose favorite genre has only one song basically get that one song by default, regardless of fit.
 
 ---
 
@@ -114,32 +137,25 @@ I tested six user profiles against the 17-song catalog: three "normal" taste pro
 - **Genre/mood not in the catalog at all** — `favorite_genre: "opera", favorite_mood: "euphoric", target_energy: 0.5, likes_acoustic: False`
 - **Extreme target energy** — `favorite_genre: "metal", favorite_mood: "angry", target_energy: 0.0, likes_acoustic: False` (asking for a calm metal/angry song, when metal/angry songs in the catalog are all high-energy)
 
-What I looked for: whether the top result's genre/mood actually matched the profile, whether energy closeness behaved symmetrically, and whether a nonsensical or self-contradictory profile would crash, silently fail, or quietly produce a weird-but-explainable ranking.
+What I looked for: did the top result's genre/mood actually match the profile, did energy closeness behave symmetrically, and did a contradictory or nonsense profile crash, fail silently, or just produce a weird-but-explainable ranking.
 
 **What surprised me:**
-- In the **conflicting profile** (R&B/sad + high energy), the system still ranked "Empty Hallways" (R&B/sad, energy 0.35) #1 even though its energy is the *opposite* of the requested 0.90 — the genre+mood bonus (+5) simply outweighed the energy penalty. This confirms the bias we flagged earlier: genre/mood dominance can override a legitimate, strongly-stated numeric preference.
-- In the **nonexistent genre/mood profile** (opera/euphoric), the system didn't error or return nothing — it just silently fell back to ranking purely by energy closeness and acoustic fit, since no song could ever earn the genre or mood bonus. The recommender has no way to signal "I don't recognize this genre" — it just quietly ignores it.
-- In the **extreme target energy profile** (metal/angry at energy 0.0), "Iron Reckoning" won with a score of 6.07 despite its energy (0.95) being as far as possible from the target (0.0) — again, the genre+mood bonus alone was enough to overcome an almost-total energy mismatch. This is the clearest evidence that our weighting lets a strong categorical match overpower a contradictory numeric preference.
+- Conflicting profile (R&B/sad + high energy): top result "Empty Hallways" had the *opposite* energy of what was asked (0.35 vs. 0.90) — the genre+mood bonus simply outweighed the energy mismatch.
+- Nonexistent genre/mood (opera/euphoric): no error — it silently fell back to ranking by energy and acoustic fit alone, since nothing could earn a genre/mood bonus.
+- Extreme target energy (metal/angry at 0.0): "Iron Reckoning" (energy 0.95) still won #1 — the furthest-possible energy mismatch, overridden by genre+mood.
 
-**Comparing profiles against each other (in plain language):**
+**Profile comparisons:**
 
-- **High-Energy Pop vs. Chill Lofi:** these two profiles share almost nothing — Chill Lofi's winner ("Library Rain") is a slow, mellow, mostly-acoustic song, while High-Energy Pop's winner ("Sunrise City") is a fast, electronic-sounding, upbeat song. That makes sense: the two people asked for opposite things — one wants calm background music, the other wants something loud and happy — so a good recommender *should* send them in completely different directions, and ours does.
+- **High-Energy Pop vs. Chill Lofi:** opposite requests, opposite results (fast/electronic vs. slow/acoustic) — correct behavior.
+- **High-Energy Pop vs. Deep Intense Rock:** same energy level, different mood (happy vs. aggressive) — the system told them apart using mood, not just energy.
+- **Chill Lofi vs. Deep Intense Rock:** zero overlap in top 5 — the most opposite pair we tested, as expected.
+- **High-Energy Pop vs. Conflicting edge case:** Pop's winner matches on all 3 counts; the Conflicting winner only matches genre+mood and ignores the stated energy — same confidence, different reliability.
+- **Chill Lofi vs. Genre/Mood-Not-in-Catalog edge case:** Lofi's results are genuinely similar; the made-up genre's results just happen to share an energy level — genre/mood never actually mattered for the second one.
+- **Deep Intense Rock vs. Extreme Target Energy edge case:** Deep Intense Rock's request matches what the catalog has; the edge case doesn't, yet still gets a confident #1 pick anyway.
 
-- **High-Energy Pop vs. Deep Intense Rock:** both of these listeners want high-energy music (around 0.90), but Pop's winner is cheerful ("Sunrise City," a happy song) while Rock's winner is aggressive ("Storm Runner," an intense song). This makes sense too — "high energy" just means "a lot of intensity," it doesn't say *what kind* of feeling that intensity carries. Our system correctly tells those two apart using the mood, not just the energy number.
+**Why does "Gym Hero" keep showing up for "Happy Pop"?** It's the right genre (pop) and has an energy level close to what a happy-pop fan wants — that's already enough points to rank high, even though its mood is "intense," not "happy." The system adds up several "pretty good" matches instead of requiring one perfect one, so a near-miss on mood can still win.
 
-- **Chill Lofi vs. Deep Intense Rock:** these are the two most opposite profiles we tested, and the results show it — Lofi's whole top 5 are soft, acoustic, low-energy songs, while Rock's whole top 5 are loud, electronic-sounding, high-energy songs. There's zero overlap in the top 5 between them. That's exactly what you'd want: a system that can't tell a chill listener from an intense-rock listener wouldn't be very useful.
-
-- **High-Energy Pop vs. the "Conflicting" edge case:** the normal Pop profile and the Conflicting profile (R&B fan who says they want "sad" music at "very high energy") both got a confident #1 answer — but the Conflicting one shouldn't feel as trustworthy. The Pop profile's winner matches on every count (genre, mood, *and* energy), while the Conflicting profile's winner only wins because it matches genre and mood — its energy is actually the opposite of what was asked for. Side by side, this shows the system can't tell the difference between "a confident, well-earned answer" and "a confident answer that's quietly ignoring half of what you said."
-
-- **Chill Lofi vs. the "Genre/Mood Not in Catalog" edge case:** Chill Lofi gets songs that are genuinely similar to "lofi" and "chill" in every sense. The made-up "opera/euphoric" profile gets songs that happen to have the right energy level, but have nothing to do with opera or euphoria — the system just quietly swapped in "closest energy" as a replacement for "closest vibe" without saying so. Comparing them side by side shows how much weaker an answer looks once you know genre and mood never actually mattered for the second one.
-
-- **Deep Intense Rock vs. the "Extreme Target Energy" edge case:** both profiles ask for "rock-like, intense" music, but the second one specifically asks for *calm* intensity (energy 0.0), which doesn't really exist for that genre in our data. Deep Intense Rock gets a great answer because a calm-ish intense rock song doesn't need to exist — the request and the catalog line up. The edge case doesn't: the system still hands back a confident #1 pick ("Iron Reckoning"), but it's the *most* energetic song in the whole catalog, the literal opposite of what was asked. Comparing the two shows that a strong genre/mood match can mask a request the catalog can't actually satisfy.
-
-**Why does "Gym Hero" keep showing up when someone just wants "Happy Pop"?**
-
-Imagine you tell a music app "I want something happy and poppy," and it keeps suggesting a gym workout anthem that's really more "pumped up" than "happy." Here's why that happens in plain terms: our system gives big bonus points for matching the *genre* (is it pop? yes) and separately checks if the *mood* matches exactly (is it labeled "happy"? no, it's labeled "intense"). Even without that mood bonus, "Gym Hero" still racks up a lot of points because it's a pop song (big bonus) and its energy level happens to be close to what a "happy pop" fan typically wants (another decent chunk of points). So it's not that the system thinks "intense" and "happy" are the same thing — it's that being the right *genre* and having the right *energy* is already enough points to land in the top few, even when the mood label doesn't actually match. In short: the system is good at spotting "this sounds like the right kind of song" but can still recommend something that doesn't quite feel right, because it's adding up several "pretty good" matches instead of requiring one "perfect" match.
-
-*Full terminal output for each of the six profiles tested above is in `README.md` under "Sample Recommendation Output"*
+*Full terminal output for all six profiles is in `README.md` under "Sample Recommendation Output."*
 
 ---
 
@@ -154,6 +170,13 @@ Prompts:
 - Improving diversity among the top results  
 - Handling more complex user tastes  
 
+**Answer:**
+- Add more songs per genre so single-song genres stop auto-winning regardless of fit.
+- Use tempo, valence, and danceability in scoring, not just energy and acousticness.
+- Let users pick more than one favorite genre/mood instead of just one each.
+- Warn the user when their genre/mood isn't in the catalog instead of silently ranking by energy alone.
+- Add a bit of variety to the top 5 so results aren't always identical for the same profile.
+
 ---
 
 ## 9. Personal Reflection  
@@ -165,3 +188,11 @@ Prompts:
 - What you learned about recommender systems  
 - Something unexpected or interesting you discovered  
 - How this changed the way you think about music recommendation apps  
+
+**Answer:**
+
+The biggest thing I learned is that recommender systems are value-based, not objective. "Good recommendation" isn't a fact the system discovers, it's whatever the designer's chosen weights happen to produce. Our genre bonus, mood bonus, and energy formula weren't derived from any rule about what's "correct" — we just picked numbers, and those numbers decided every outcome from then on.
+
+The clearest proof of this was the "Extreme Target Energy" test: a user asked for a calm, angry metal song (energy 0.0), and the system still confidently recommended the single most energetic song in the entire catalog (0.95) as its #1 pick. It wasn't a bug — the math worked exactly as designed. It just revealed that "genre and mood matter more than energy" was our assumption, not a universal truth, and the system had no way to know it was giving a bad answer.
+
+That changed how I think about real apps like Spotify or YouTube: every "recommended for you" is the output of someone's weighting decisions, not a neutral read of what's objectively best for me. There's no reason their choices are any less arbitrary than ours — they're just better-tuned and tested on far more data.
